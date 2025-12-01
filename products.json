@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Diamond Necklace",
+    "price": 50000,
+    "category": "Necklaces",
+    "image": "/products/necklace.jpg",
+    "description": "A beautiful diamond necklace perfect for weddings and special events."
+  },
+  {
+    "id": 2,
+    "name": "Gold Ring",
+    "price": 25000,
+    "category": "Rings",
+    "image": "/products/ring.jpg",
+    "description": "Premium 24k gold ring designed with precision craftsmanship."
+  },
+  {
+    "id": 3,
+    "name": "Luxury Earrings",
+    "price": 15000,
+    "category": "Earrings",
+    "image": "/products/earrings.jpg",
+    "description": "Elegant earrings with a sparkling finish."
+  }
+]

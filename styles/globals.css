@@ -1,0 +1,488 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", Arial, sans-serif;
+}
+
+body {
+  background-color: #f4fdf8;
+  color: #333;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Announcement Bar */
+.announcement-bar {
+  background-color: #5a082a;
+  color: white;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 0.9rem;
+}
+
+.announcement-bar a {
+  color: #9fffa0;
+  text-decoration: none;
+  margin-left: 5px;
+}
+
+/* Navbar */
+.navbar {
+  padding: 20px 40px;
+  background-color: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+}
+
+/* Hero Section Layout */
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 80px 100px;
+  gap: 60px;
+}
+
+.left {
+  flex: 1;
+}
+
+.left .small-text {
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  color: #4a4a4a;
+  margin-bottom: 10px;
+}
+
+.left h1 {
+  font-size: 2.8rem;
+  line-height: 1.3;
+  margin-bottom: 20px;
+  color: #222;
+}
+
+.highlight {
+  color: #5a0737;
+}
+
+.subtext {
+  font-size: 1.1rem;
+  color: #444;
+  max-width: 400px;
+}
+
+.right {
+  flex: 0.9;
+  display: flex;
+  justify-content: center;
+}
+
+/* Signup Form */
+.form-box {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 40px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 400px;
+}
+
+.form-box h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 1.6rem;
+  color: #5a0737;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background-color: white;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+.terms {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 20px;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.terms input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.terms label {
+  cursor: pointer;
+  line-height: 1;
+  margin: 0;
+}
+
+
+
+.submit-btn {
+  background-color: #13aa52;
+  color: white;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.submit-btn:hover {
+  background-color: #0f8a42;
+}
+
+/* Features Section */
+.features-section {
+  width: 90%;
+  max-width: 1200px;
+  margin: 100px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 120px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 50px;
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 1s ease;
+}
+
+.feature.reverse {
+  flex-direction: row-reverse;
+}
+
+.feature.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.feature-image img {
+  width: 220px;
+  height: auto;
+  border-radius: 10px;
+  background: #03373f;
+  padding: 25px;
+}
+
+.feature-content {
+  max-width: 500px;
+}
+
+.feature-content h2 {
+  color: #222;
+  font-size: 1.7rem;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.feature-content p {
+  color: #444;
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+.feature-content a {
+  color: #5a0737;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.feature-content a:hover {
+  color: #9c155a;
+  text-decoration: underline;
+}
+
+/* CTA Section */
+.cta-section {
+  background-color: #002330;
+  color: #fff;
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.cta-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.cta-container h2 {
+  font-size: 2.2rem;
+  line-height: 1.4;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.cta-container h2 span {
+  color: #00ed64;
+}
+
+.cta-btn {
+  background-color: #00ed64;
+  color: #001923;
+  border: none;
+  padding: 15px 35px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.cta-btn:hover {
+  background-color: #00c755;
+  transform: scale(1.05);
+}
+
+/* Footer */
+.footer {
+  background-color: #001923;
+  color: #a0aab3;
+  text-align: center;
+  padding: 25px 0;
+  font-size: 0.9rem;
+  border-top: 1px solid #00313f;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .container {
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .left {
+    text-align: center;
+  }
+
+  .left h1 {
+    font-size: 2.2rem;
+  }
+
+  .feature {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .feature.reverse {
+    flex-direction: column;
+  }
+
+  .feature-image img {
+    width: 160px;
+  }
+
+  .cta-container h2 {
+    font-size: 1.8rem;
+  }
+
+  .cta-btn {
+    padding: 12px 25px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Modern styling ONLY for First Name, Last Name, Company */
+input[name="firstName"],
+input[name="lastName"],
+input[name="company"] {
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #c9c9c9;
+  background-color: #ffffff;
+  font-size: 1rem;
+  transition: 0.2s ease;
+}
+
+input[name="firstName"]:focus,
+input[name="lastName"]:focus,
+input[name="company"]:focus {
+  border-color: #5a0737;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(90, 7, 55, 0.15);
+}
+
+.navbar {
+    width: 100%;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    background: white;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .login-btn {
+    text-decoration: none;
+    font-weight: 600;
+    padding: 10px 22px;
+    border: 2px solid #5a0737;
+    color: #5a0737;
+    background: white;
+    border-radius: 10px;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 0 rgba(90, 7, 55, 0); /* for hover animation */
+  }
+
+  .login-btn:hover {
+    background: #5a0737;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 7, 55, 0.35);
+    transform: translateY(-2px);
+  }
+
+  .login-btn:active {
+    transform: translateY(0px);
+    box-shadow: 0 2px 6px rgba(90, 7, 55, 0.25);
+  }
+
+  .login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center; /* center horizontally */
+  align-items: center;     /* center vertically */
+  padding: 20px; 
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 3px solid rgba(0, 0, 0, 0.2);
+  border-top-color: black;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade in the whole page */
+.verify-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Card animation */
+.verify-card-animate {
+  animation: cardPop 0.35s ease-out forwards;
+}
+@keyframes cardPop {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Spinner (loader during redirect) */
+.verify-spinner {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 18px auto;
+  border-radius: 50%;
+  border: 4px solid #d1d5db;
+  border-top-color: #10b981;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Checkmark animation */
+.verify-checkmark-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.verify-checkmark {
+  width: 70px;
+  height: 70px;
+  stroke: #10b981;
+}
+
+.verify-checkmark-circle {
+  stroke-width: 3;
+  stroke-dasharray: 166;
+  stroke-dashoffset: 166;
+  animation: checkmarkDraw 0.6s ease-out forwards;
+}
+
+.verify-checkmark-check {
+  stroke-width: 3;
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  stroke-linecap: round;
+  animation: checkmarkTick 0.4s ease-out 0.4s forwards;
+}
+
+@keyframes checkmarkDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes checkmarkTick {
+  to { stroke-dashoffset: 0; }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.cta-btn {
+  display: inline-block;
+  text-decoration: none !important;
+}

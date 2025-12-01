@@ -1,0 +1,32 @@
+[
+  {
+    "sessionToken": "121b93cf-11b8-4c0d-a13d-0efe64dfb069",
+    "userId": 1764281728986,
+    "expires": "2025-12-27T22:35:55.043Z"
+  },
+  {
+    "sessionToken": "a53a0cd3-adb2-4b89-a8d4-3ff9a154c834",
+    "userId": 1764281728986,
+    "expires": "2025-12-27T22:38:02.543Z"
+  },
+  {
+    "sessionToken": "a07882a9-21ca-4097-ad7c-8aa6bebde3d2",
+    "userId": 1764317728919,
+    "expires": "2025-12-28T08:16:02.849Z"
+  },
+  {
+    "sessionToken": "afbc996c-e20c-4cf3-869e-fd0f88c19a28",
+    "userId": 1764369290615,
+    "expires": "2025-12-28T22:35:11.153Z"
+  },
+  {
+    "sessionToken": "d9466c07-55cb-4765-a659-95584626b72a",
+    "userId": "1764501194564",
+    "expires": "2025-12-30T11:14:15.562Z"
+  },
+  {
+    "sessionToken": "4a0abb1f-cecb-4175-80e5-011b9c7d0d92",
+    "userId": "1764569636865",
+    "expires": "2025-12-31T06:14:20.150Z"
+  }
+]

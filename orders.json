@@ -1,0 +1,72 @@
+[
+  {
+    "id": "order_xxxxx",
+    "email": "customer@gmail.com",
+    "items": [
+      {
+        "id": 1,
+        "name": "Gold chain",
+        "price": 30000,
+        "qty": 1
+      }
+    ],
+    "amount": 30000,
+    "reference": "paystack_ref",
+    "status": "paid",
+    "createdAt": "2025-01-02T10:23:00Z"
+  },
+  {
+    "id": "order_1764571684239",
+    "reference": "REF-1764571684107",
+    "email": "oyeladebayo6@gmail.com",
+    "cart": [
+      {
+        "category": "Rings",
+        "id": 2,
+        "name": "Gold Ring",
+        "price": 25000,
+        "image": "/products/ring.jpg",
+        "description": "Premium 24k gold ring designed with precision craftsmanship."
+      }
+    ],
+    "amount": 25000,
+    "status": "pending",
+    "createdAt": "2025-12-01T06:48:04.239Z"
+  },
+  {
+    "id": "order_1764572283282",
+    "reference": "REF-1764572283270",
+    "email": "oyeladebayo6@gmail.com",
+    "cart": [
+      {
+        "category": "Rings",
+        "id": 2,
+        "name": "Gold Ring",
+        "price": 25000,
+        "image": "/products/ring.jpg",
+        "description": "Premium 24k gold ring designed with precision craftsmanship."
+      }
+    ],
+    "amount": 25000,
+    "status": "pending",
+    "createdAt": "2025-12-01T06:58:03.282Z"
+  },
+  {
+    "id": "order_1764572417321",
+    "reference": "REF-1764572417312",
+    "email": "oyeladebayo6@gmail.com",
+    "cart": [
+      {
+        "category": "Rings",
+        "id": 2,
+        "name": "Gold Ring",
+        "price": 25000,
+        "image": "/products/ring.jpg",
+        "description": "Premium 24k gold ring designed with precision craftsmanship."
+      }
+    ],
+    "amount": 25000,
+    "status": "pending",
+    "createdAt": "2025-12-01T07:00:17.321Z"
+  }
+]

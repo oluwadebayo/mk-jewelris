@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1764369843841,
+    "firstName": "Oyelade",
+    "lastName": "Bayo",
+    "company": "",
+    "email": "oyeladebayo1@gmail.com",
+    "verified": true,
+    "passwordHash": "$2b$10$vI5MQOfJrrbBlgs7/d9Spu492B5o7BJ2I/R7DafZcsQtoXU8OeAT.",
+    "provider": "google",
+    "role": "admin"
+  },
+  {
+    "id": 1764576679412,
+    "firstName": "Bayo",
+    "lastName": "Sway",
+    "email": "oyeladebayo6@gmail.com",
+    "password": ".........",
+    "role": "user",
+    "verified": true
+  }
+]
