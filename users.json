@@ -18,5 +18,17 @@
     "password": ".........",
     "role": "user",
     "verified": true
+  },
+  {
+    "id": "1764664673761",
+    "firstName": "Bayo",
+    "lastName": "Oyelade",
+    "company": "",
+    "email": "oyeladebayo5@gmail.com",
+    "passwordHash": "$2b$10$nr8PNQTiJnZifjLzqypspeCwmtR.y.XlKLxUtAysuHddsm7X4XhL2",
+    "verified": false,
+    "verifyToken": "27f1fcee0c2c19d86738dd7d1a6e0132c3700896",
+    "verifyExpires": 1764668273761,
+    "role": "user"
   }
 ]

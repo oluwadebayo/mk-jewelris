@@ -1,10 +1,13 @@
 // pages/api/resend.js
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { createClient } from "@supabase/supabase-js";
 
-const usersFile = path.join(process.cwd(), "users.json");
+// Secure Supabase server client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -15,17 +18,12 @@ export default async function handler(req, res) {
 
   if (!email) return res.status(400).json({ error: "MISSING_EMAIL" });
 
-  // SAFELY read users
-  let users = [];
-  try {
-    const raw = fs.existsSync(usersFile) ? fs.readFileSync(usersFile, "utf8") : "[]";
-    users = JSON.parse(raw || "[]");
-  } catch (err) {
-    console.error("read users error:", err);
-    return res.status(500).json({ error: "READ_FAILED" });
-  }
-
-  const user = users.find(u => u.email === email);
+  // 1️⃣ Find user in Supabase
+  const { data: user, error: findErr } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
 
   if (!user) {
     return res.status(400).json({ error: "USER_NOT_FOUND" });
@@ -35,20 +33,28 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "ALREADY_VERIFIED" });
   }
 
-  // Generate NEW token
-  user.verifyToken = crypto.randomBytes(20).toString("hex");
-  user.verifyExpires = Date.now() + 1000 * 60 * 60; // 1 hour
+  // 2️⃣ Generate NEW verification token + expiry
+  const newToken = crypto.randomBytes(20).toString("hex");
+  const newExpiry = Date.now() + 1000 * 60 * 60; // 1 hour
 
-  try {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-  } catch (err) {
-    console.error("write users error:", err);
+  // 3️⃣ Update in database
+  const { error: updateErr } = await supabase
+    .from("users")
+    .update({
+      verify_token: newToken,
+      verify_expires: newExpiry,
+    })
+    .eq("id", user.id);
+
+  if (updateErr) {
+    console.error("SAVE_FAILED:", updateErr);
     return res.status(500).json({ error: "SAVE_FAILED" });
   }
 
-  // keep original link host/port
-  const link = `http://localhost:3001/verify?token=${user.verifyToken}`;
+  // Frontend verify page link
+  const link = `http://localhost:3001/verify?token=${newToken}`;
 
+  // 4️⃣ Nodemailer setup (same as before)
   const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -57,7 +63,7 @@ export default async function handler(req, res) {
     },
   });
 
-  // --- ORIGINAL HTML TEMPLATE (kept) ---
+  // 5️⃣ Your original email template (EXACT)
   const html = `
     <div style="background-color:#0f1216; padding:40px 0; font-family:Arial, sans-serif;">
       <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background:#1a1d21; border-radius:8px; padding:40px;">
@@ -70,7 +76,7 @@ export default async function handler(req, res) {
 
         <tr>
           <td style="color:white; font-size:22px; font-weight:bold; padding-bottom:20px;">
-            Hello ${user.firstName || ""}!
+            Hello ${user.first_name || ""}!
           </td>
         </tr>
 

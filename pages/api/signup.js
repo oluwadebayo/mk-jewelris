@@ -1,11 +1,13 @@
 // pages/api/signup.js
-import fs from "fs";
-import path from "path";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import { createClient } from "@supabase/supabase-js";
 
-const usersFile = path.join(process.cwd(), "users.json");
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // server-only
+);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -18,55 +20,52 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "MISSING_FIELDS" });
   }
 
-  // read users safely
-  let users = [];
-  try {
-    const raw = fs.existsSync(usersFile) ? fs.readFileSync(usersFile, "utf8") : "[]";
-    users = JSON.parse(raw || "[]");
-  } catch (err) {
-    console.error("read users error:", err);
-    users = [];
-  }
+  // 1️⃣ Check if email already exists
+  const { data: existingUser, error: existingErr } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
 
-  const existing = users.find(u => u.email === email);
-
-  if (existing) {
-    if (!existing.verified) {
+  if (existingUser) {
+    if (!existingUser.verified) {
       return res.status(400).json({ error: "UNVERIFIED_ACCOUNT" });
     }
     return res.status(400).json({ error: "EMAIL_TAKEN" });
   }
 
-  // hash password (you requested hashed passwords)
+  // 2️⃣ Hash password
   const hashedPassword = bcrypt.hashSync(password, 10);
 
+  // 3️⃣ Generate verify token + expiry
   const verifyToken = crypto.randomBytes(20).toString("hex");
   const verifyExpires = Date.now() + 1000 * 60 * 60; // 1 hour
 
-  const newUser = {
-    id: String(Date.now()),
-    firstName,
-    lastName,
-    company,
-    email,
-    passwordHash: hashedPassword, // fixed variable name
-    verified: false,
-    verifyToken,
-    verifyExpires,
-    role: "user",
-  };
+  // 4️⃣ Insert user into Supabase
+  const { data: newUser, error: insertErr } = await supabase
+    .from("users")
+    .insert([
+      {
+        first_name: firstName,
+        last_name: lastName,
+        company,
+        email,
+        password_hash: hashedPassword,
+        verified: false,
+        verify_token: verifyToken,
+        verify_expires: verifyExpires,
+        role: "user",
+      }
+    ])
+    .select()
+    .single();
 
-  users.push(newUser);
-
-  try {
-    fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
-  } catch (err) {
-    console.error("write users error:", err);
+  if (insertErr) {
+    console.error("Supabase insert error:", insertErr);
     return res.status(500).json({ error: "SAVE_FAILED" });
   }
 
-  // FRONTEND VERIFY PAGE (so it can auto-login by calling signIn with verifyToken)
-  // kept your original link host/port
+  // 5️⃣ Prepare verify link (same as before)
   const link = `http://localhost:3001/verify?token=${verifyToken}`;
 
   const transporter = nodemailer.createTransport({
@@ -77,7 +76,7 @@ export default async function handler(req, res) {
     },
   });
 
-  // <-- ORIGINAL EMAIL HTML (kept exactly, minor whitespace preserved) -->
+  // 6️⃣ Your original HTML (unchanged)
   const html = `
     <div style="background-color:#0f1216; padding:40px 0; font-family:Arial, sans-serif;">
       <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background:#1a1d21; border-radius:8px; padding:40px;">
@@ -137,8 +136,8 @@ export default async function handler(req, res) {
       html,
     });
   } catch (err) {
-    // log but continue (user created)
     console.error("mail send error:", err);
+    // continue, user is still created
   }
 
   return res.status(200).json({ message: "Account created. Verify your email." });

@@ -1,80 +1,72 @@
 // pages/api/verify.js
-import fs from "fs";
-import path from "path";
 import { serialize } from "cookie";
 import { v4 as uuid } from "uuid";
+import { createClient } from "@supabase/supabase-js";
 
-const usersPath = path.join(process.cwd(), "users.json");
-const sessionsPath = path.join(process.cwd(), "sessions.json");
+// Secure Supabase server client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // server-only
+);
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const { token } = req.query;
 
   if (!token) {
     return res.status(400).json({ error: "MISSING_TOKEN" });
   }
 
-  // SAFELY read users
-  let users = [];
-  try {
-    const raw = fs.existsSync(usersPath) ? fs.readFileSync(usersPath, "utf8") : "[]";
-    users = JSON.parse(raw || "[]");
-  } catch (err) {
-    console.error("read users error:", err);
-    return res.status(500).json({ error: "READ_FAILED" });
-  }
-
-  const user = users.find(u => u.verifyToken === token);
+  // 1️⃣ Fetch user by verify_token
+  const { data: user, error: findErr } = await supabase
+    .from("users")
+    .select("*")
+    .eq("verify_token", token)
+    .single();
 
   if (!user) {
     return res.status(400).json({ error: "INVALID_VERIFY_TOKEN" });
   }
 
-  // check expiry if present
-  if (user.verifyExpires && Date.now() > user.verifyExpires) {
+  // 2️⃣ Check if expired
+  if (user.verify_expires && Date.now() > user.verify_expires) {
     return res.status(400).json({ error: "VERIFY_TOKEN_EXPIRED" });
   }
 
-  // mark verified
-  user.verified = true;
-  user.verifyToken = null;
-  user.verifyExpires = null;
+  // 3️⃣ Mark verified + clear fields
+  const { error: updateErr } = await supabase
+    .from("users")
+    .update({
+      verified: true,
+      verify_token: null,
+      verify_expires: null,
+    })
+    .eq("id", user.id);
 
-  try {
-    fs.writeFileSync(usersPath, JSON.stringify(users, null, 2));
-  } catch (err) {
-    console.error("write users error:", err);
+  if (updateErr) {
+    console.error("verify update error:", updateErr);
     return res.status(500).json({ error: "SAVE_FAILED" });
   }
 
-  // create NextAuth-compatible session token stored in sessions.json (legacy approach you used)
+  // 4️⃣ AUTO-LOGIN (same logic as your old session.json method)
   const sessionToken = uuid();
-  let sessions = [];
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  try {
-    if (fs.existsSync(sessionsPath)) {
-      const rawSessions = fs.readFileSync(sessionsPath, "utf8");
-      sessions = JSON.parse(rawSessions || "[]");
-    }
-  } catch (err) {
-    console.error("read sessions error:", err);
-    sessions = [];
+  const { error: sessionErr } = await supabase
+    .from("sessions")
+    .insert([
+      {
+        session_token: sessionToken,
+        user_id: user.id,
+        expires: expiresAt,
+      }
+    ]);
+
+  if (sessionErr) {
+    console.error("session insert error:", sessionErr);
+    // user is still verified, continue
   }
 
-  sessions.push({
-    sessionToken,
-    userId: user.id,
-    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  });
-
-  try {
-    fs.writeFileSync(sessionsPath, JSON.stringify(sessions, null, 2));
-  } catch (err) {
-    console.error("write sessions error:", err);
-    // continue anyway
-  }
-
-  // set cookie (matches your previous implementation)
+  // 5️⃣ Set NextAuth compatible cookie
   res.setHeader(
     "Set-Cookie",
     serialize("next-auth.session-token", sessionToken, {
