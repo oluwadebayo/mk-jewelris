@@ -1,5 +1,5 @@
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
-import products from "../../../products.json"; 
+import products from "../../products.json";
 import Link from "next/link";
 
 export default function BrowseProductsPage() {
