@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   }
 
   // 5️⃣ Prepare verify link (same as before)
-  const link = `http://localhost:3001/verify?token=${verifyToken}`;
+ const link = `${process.env.NEXT_PUBLIC_BASE_URL}/verify?token=${verifyToken}`;
 
   const transporter = nodemailer.createTransport({
     service: "gmail",
