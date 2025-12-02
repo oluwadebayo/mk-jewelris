@@ -3,6 +3,9 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 
+export const config = {
+  runtime: "nodejs",
+};
 export default async function handler(req, res) {
   const { orderId } = req.query;
 
