@@ -5,9 +5,11 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
+// ✅ FIXED: Use server-side Supabase URL + SERVICE ROLE key
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } }
 );
 
 export const authOptions = {
@@ -28,15 +30,20 @@ export const authOptions = {
       async authorize(credentials) {
         if (!credentials) throw new Error("NO_CREDENTIALS");
 
-        // 1️⃣ Auto login after email verification
+        // 1️⃣ AUTO LOGIN AFTER EMAIL VERIFICATION
         if (credentials.verifyToken) {
           const token = credentials.verifyToken.trim();
 
-          const { data: pending } = await supabase
+          const { data: pending, error: lookupErr } = await supabase
             .from("pending_verifications")
             .select("*")
             .eq("verification_token", token)
             .maybeSingle();
+
+          if (lookupErr) {
+            console.error("Supabase error:", lookupErr);
+            throw new Error("DB_ERROR");
+          }
 
           if (!pending) throw new Error("INVALID_VERIFY_TOKEN");
 
@@ -46,7 +53,7 @@ export const authOptions = {
             .update({ verified: true })
             .eq("id", pending.user_id);
 
-          // Remove all tokens
+          // Delete all verification tokens for this user
           await supabase
             .from("pending_verifications")
             .delete()
@@ -67,15 +74,20 @@ export const authOptions = {
           };
         }
 
-        // 2️⃣ Normal login
+        // 2️⃣ NORMAL LOGIN
         const { email, password } = credentials;
         if (!email || !password) throw new Error("MISSING_CREDENTIALS");
 
-        const { data: user } = await supabase
+        const { data: user, error: userErr } = await supabase
           .from("users")
           .select("*")
           .eq("email", email)
           .maybeSingle();
+
+        if (userErr) {
+          console.error("Supabase login error:", userErr);
+          throw new Error("DB_ERROR");
+        }
 
         if (!user) return null;
 
@@ -97,8 +109,8 @@ export const authOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
+    // 🔥 Create user in Supabase on Google login if not exist
     async signIn({ user, account }) {
-      // Google: create supabase user if not exist
       if (account?.provider === "google") {
         const { data: existing } = await supabase
           .from("users")
