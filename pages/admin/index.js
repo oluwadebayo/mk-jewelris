@@ -1,11 +1,7 @@
 // pages/admin/index.js
-import fs from "fs";
-import path from "path";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminNavbar from "../../components/admin/AdminNavbar";
 import { getSession } from "next-auth/react";
-
-const dataDir = process.cwd(); // root of project
 
 export default function AdminHome({ stats, latestOrders, userName }) {
   return (
@@ -155,40 +151,34 @@ const tdStyleBold = {
   fontWeight: 600,
 };
 
-// ------------------ FIXED SSR ------------------
+
+// -------------------------------------------------------
+//  FIXED: SERVER-SIDE DATA LOAD (NO fs, fetch ONLY)
+// -------------------------------------------------------
 export async function getServerSideProps(ctx) {
-  const session = await getSession({ req: ctx.req });
+  const session = await getSession(ctx);
 
   if (!session || session.user.role !== "admin") {
     return {
-      redirect: {
-        destination: "/login",
-        permanent: false,
-      },
+      redirect: { destination: "/login", permanent: false },
     };
   }
 
   try {
-    const ordersPath = path.join(dataDir, "orders.json");
-    const usersPath = path.join(dataDir, "users.json");
+    const base = process.env.NEXT_PUBLIC_SITE_URL;
 
-    // FIXED: products.json is located in /public
-    const productsPath = path.join(dataDir, "public", "products.json");
+    const [ordersRes, usersRes, productsRes] = await Promise.all([
+      fetch(`${base}/orders.json`),
+      fetch(`${base}/users.json`),
+      fetch(`${base}/products.json`),
+    ]);
 
-    const orders = fs.existsSync(ordersPath)
-      ? JSON.parse(fs.readFileSync(ordersPath, "utf8"))
-      : [];
-
-    const users = fs.existsSync(usersPath)
-      ? JSON.parse(fs.readFileSync(usersPath, "utf8"))
-      : [];
-
-    const products = fs.existsSync(productsPath)
-      ? JSON.parse(fs.readFileSync(productsPath, "utf8"))
-      : [];
+    const orders = await ordersRes.json();
+    const users = await usersRes.json();
+    const products = await productsRes.json();
 
     const totalRevenue = orders.reduce(
-      (sum, o) => sum + (Number(o.amount) || 0),
+      (s, o) => s + (Number(o.amount) || 0),
       0
     );
 
@@ -211,6 +201,7 @@ export async function getServerSideProps(ctx) {
     };
   } catch (err) {
     console.error("ADMIN INDEX ERROR:", err);
+
     return {
       props: {
         stats: {
