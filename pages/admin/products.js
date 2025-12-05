@@ -8,43 +8,58 @@ import AdminNavbar from "@/components/admin/AdminNavbar";
 
 export default function AdminProducts() {
   const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
 
-  // Validate admin
+  // ------------------------------
+  // ADMIN VALIDATION (client-side)
+  // ------------------------------
   useEffect(() => {
-    async function validateAdmin() {
+    async function validate() {
       const session = await getSession();
 
       if (!session || session.user.role !== "admin") {
         return router.push("/login");
       }
 
-      fetchProducts();
+      await loadProducts();
       setLoading(false);
     }
 
-    validateAdmin();
+    validate();
   }, []);
 
-  // Load products
-  const fetchProducts = async () => {
-    const res = await fetch("/api/products/get");
-    const data = await res.json();
-    setProducts(data);
+  // ------------------------------
+  // LOAD PRODUCTS (from /public)
+  // ------------------------------
+  const loadProducts = async () => {
+    try {
+      const res = await fetch("/products.json");
+      const data = await res.json();
+      setProducts(data);
+    } catch (err) {
+      console.error("Failed to load products:", err);
+    }
   };
 
-  // Delete product
+  // ------------------------------
+  // DELETE PRODUCT
+  // ------------------------------
   const deleteProduct = async (id) => {
     if (!confirm("Delete this product?")) return;
 
-    await fetch("/api/products/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      await fetch("/api/products/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-    fetchProducts();
+      loadProducts();
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -108,7 +123,6 @@ export default function AdminProducts() {
                         </td>
 
                         <td style={cell}>{p.name}</td>
-
                         <td style={cell}>₦{p.price.toLocaleString()}</td>
 
                         <td style={cell}>
@@ -132,7 +146,10 @@ export default function AdminProducts() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: "center", padding: 15 }}>
+                      <td
+                        colSpan={4}
+                        style={{ textAlign: "center", padding: 15 }}
+                      >
                         No products found.
                       </td>
                     </tr>
@@ -147,6 +164,9 @@ export default function AdminProducts() {
   );
 }
 
+// ------------------------------
+// STYLES — untouched
+// ------------------------------
 const cell = {
   padding: "12px",
   borderBottom: "1px solid #eee",

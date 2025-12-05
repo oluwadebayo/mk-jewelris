@@ -1,45 +1,82 @@
 // pages/admin/users.js
 import { useState, useEffect } from "react";
+import { getSession } from "next-auth/react";
+import { useRouter } from "next/router";
+
 import AdminNavbar from "../../components/admin/AdminNavbar";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 
 export default function AdminUsers() {
+  const router = useRouter();
+
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-
   const usersPerPage = 10;
 
-  // Fetch users.json
+  // -----------------------------------
+  // ADMIN ACCESS VALIDATION
+  // -----------------------------------
   useEffect(() => {
-    async function loadUsers() {
-      const res = await fetch("/api/admin/users");
-      const data = await res.json();
-      setUsers(Array.isArray(data.users) ? data.users : []);
+    async function validate() {
+      const session = await getSession();
+
+      if (!session || session.user.role !== "admin") {
+        return router.push("/login");
+      }
+
+      loadUsers();
     }
-    loadUsers();
+    validate();
   }, []);
 
+  // -----------------------------------
+  // LOAD USERS FROM public/users.json
+  // -----------------------------------
+  const loadUsers = async () => {
+    try {
+      const res = await fetch("/users.json"); // static JSON in public/
+      const data = await res.json();
+
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to load users.json", e);
+    }
+  };
+
+  // -----------------------------------
+  // TOGGLE ADMIN
+  // -----------------------------------
+  async function toggleAdmin(id, isAdmin) {
+    await fetch(`/api/admin/toggle-admin?id=${id}`, {
+      method: "PATCH",
+    });
+    loadUsers();
+  }
+
+  // -----------------------------------
+  // DELETE USER
+  // -----------------------------------
+  async function deleteUser(id) {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+
+    await fetch(`/api/admin/delete-user?id=${id}`, {
+      method: "DELETE",
+    });
+
+    loadUsers();
+  }
+
+  // SEARCH FILTER
   const filteredUsers = users.filter((u) =>
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
+  // PAGINATION
   const indexOfLast = currentPage * usersPerPage;
   const indexOfFirst = indexOfLast - usersPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirst, indexOfLast);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
-  async function toggleAdmin(id, isAdmin) {
-    await fetch(`/api/admin/toggle-admin?id=${id}`, { method: "PATCH" });
-    window.location.reload();
-  }
-
-  async function deleteUser(id) {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-
-    await fetch(`/api/admin/delete-user?id=${id}`, { method: "DELETE" });
-    window.location.reload();
-  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}>
@@ -120,6 +157,7 @@ export default function AdminUsers() {
                           </span>
                         </td>
 
+                        {/* ACTIONS */}
                         <td
                           style={{
                             ...cell,
@@ -127,7 +165,6 @@ export default function AdminUsers() {
                             whiteSpace: "nowrap",
                           }}
                         >
-
                           {/* EDIT BUTTON */}
                           <a
                             href={`/admin/users/edit/${u.id}`}
@@ -144,11 +181,9 @@ export default function AdminUsers() {
                             Edit
                           </a>
 
-                          {/* TOGGLE ADMIN BUTTON */}
+                          {/* TOGGLE ADMIN */}
                           <button
-                            onClick={() =>
-                              toggleAdmin(u.id, u.role === "admin")
-                            }
+                            onClick={() => toggleAdmin(u.id, u.role === "admin")}
                             style={{
                               padding: "6px 12px",
                               marginRight: "10px",
@@ -160,12 +195,10 @@ export default function AdminUsers() {
                               cursor: "pointer",
                             }}
                           >
-                            {u.role === "admin"
-                              ? "Remove Admin"
-                              : "Make Admin"}
+                            {u.role === "admin" ? "Remove Admin" : "Make Admin"}
                           </button>
 
-                          {/* DELETE BUTTON */}
+                          {/* DELETE USER */}
                           <button
                             onClick={() => deleteUser(u.id)}
                             style={{

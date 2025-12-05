@@ -5,7 +5,7 @@ import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminNavbar from "../../components/admin/AdminNavbar";
 import { getSession } from "next-auth/react";
 
-const dataDir = process.cwd(); // root, where JSON files exist
+const dataDir = process.cwd(); // root of project
 
 export default function AdminHome({ stats, latestOrders, userName }) {
   return (
@@ -35,68 +35,67 @@ export default function AdminHome({ stats, latestOrders, userName }) {
           </section>
 
           <section>
-              <div
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
+              <h3 style={{ margin: 0 }}>Latest Orders</h3>
+            </div>
+
+            <div style={tableWrap}>
+              <table
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 12,
+                  ...tableStyle,
+                  tableLayout: "fixed",
                 }}
               >
-                <h3 style={{ margin: 0 }}>Latest Orders</h3>
-              </div>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Reference</th>
+                    <th style={thStyle}>Email</th>
+                    <th style={thStyle}>Amount</th>
+                    <th style={thStyle}>Status</th>
+                    <th style={thStyle}>Created</th>
+                  </tr>
+                </thead>
 
-              <div style={tableWrap}>
-                <table
-                  style={{
-                    ...tableStyle,
-                    tableLayout: "fixed", // ensures perfect column alignment
-                  }}
-                >
-                  <thead>
+                <tbody>
+                  {latestOrders.length === 0 && (
                     <tr>
-                      <th style={thStyle}>Reference</th>
-                      <th style={thStyle}>Email</th>
-                      <th style={thStyle}>Amount</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Created</th>
+                      <td
+                        colSpan={5}
+                        style={{
+                          padding: 16,
+                          textAlign: "center",
+                          fontSize: 14,
+                        }}
+                      >
+                        No orders yet
+                      </td>
                     </tr>
-                  </thead>
+                  )}
 
-                  <tbody>
-                    {latestOrders.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          style={{
-                            padding: 16,
-                            textAlign: "center",
-                            fontSize: 14,
-                          }}
-                        >
-                          No orders yet
-                        </td>
-                      </tr>
-                    )}
-
-                    {latestOrders.map((o) => (
-                      <tr key={o.reference || o.id}>
-                        <td style={tdStyleBold}>{o.reference}</td>
-                        <td style={tdStyle}>{o.email}</td>
-                        <td style={tdStyle}>₦{o.amount}</td>
-                        <td style={{ ...tdStyle, textTransform: "capitalize" }}>
-                          {o.status}
-                        </td>
-                        <td style={tdStyle}>
-                          {new Date(o.createdAt).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
+                  {latestOrders.map((o) => (
+                    <tr key={o.reference || o.id}>
+                      <td style={tdStyleBold}>{o.reference}</td>
+                      <td style={tdStyle}>{o.email}</td>
+                      <td style={tdStyle}>₦{o.amount}</td>
+                      <td style={{ ...tdStyle, textTransform: "capitalize" }}>
+                        {o.status}
+                      </td>
+                      <td style={tdStyle}>
+                        {new Date(o.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </main>
       </div>
     </div>
@@ -156,11 +155,10 @@ const tdStyleBold = {
   fontWeight: 600,
 };
 
-
+// ------------------ FIXED SSR ------------------
 export async function getServerSideProps(ctx) {
-  const session = await getSession(ctx);
+  const session = await getSession({ req: ctx.req });
 
-  // Extra SSR protection (middleware already handles this)
   if (!session || session.user.role !== "admin") {
     return {
       redirect: {
@@ -173,7 +171,9 @@ export async function getServerSideProps(ctx) {
   try {
     const ordersPath = path.join(dataDir, "orders.json");
     const usersPath = path.join(dataDir, "users.json");
-    const productsPath = path.join(dataDir, "products.json");
+
+    // FIXED: products.json is located in /public
+    const productsPath = path.join(dataDir, "public", "products.json");
 
     const orders = fs.existsSync(ordersPath)
       ? JSON.parse(fs.readFileSync(ordersPath, "utf8"))
@@ -188,7 +188,7 @@ export async function getServerSideProps(ctx) {
       : [];
 
     const totalRevenue = orders.reduce(
-      (s, o) => s + (Number(o.amount) || 0),
+      (sum, o) => sum + (Number(o.amount) || 0),
       0
     );
 
@@ -211,7 +211,6 @@ export async function getServerSideProps(ctx) {
     };
   } catch (err) {
     console.error("ADMIN INDEX ERROR:", err);
-
     return {
       props: {
         stats: {
