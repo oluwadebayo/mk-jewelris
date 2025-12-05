@@ -1,12 +1,4 @@
-"use client";
-
-// Correct Toastify import (Fixes Next.js/Vercel build issues)
-import {
-ToastContainer as RTToastContainer,
-toast,
-Slide,
-} from "react-toastify/dist/react-toastify.cjs.development";
-
+import { ToastContainer as RTToastContainer, toast, Slide } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // 🎨 Base Toast Styles
@@ -24,28 +16,22 @@ warning: { background: "#f59e0b", color: "#fff" },
 error: { background: "#dc2626", color: "#fff" },
 };
 
-// ----------------------------------------------------
-// MAIN TOAST CONTAINER
-// ----------------------------------------------------
 export const ToastContainer = () => {
-return (
-<RTToastContainer
-position="top-right"
-autoClose={2500}
-hideProgressBar={false}
-closeOnClick
-pauseOnHover
-draggable
-transition={Slide}          // 🎉 Smooth slide-in animation
-toastStyle={toastStyle}
-newestOnTop
-/>
+return ( <RTToastContainer
+   position="top-right"
+   autoClose={2500}
+   hideProgressBar={false}
+   closeOnClick
+   pauseOnHover
+   draggable
+   transition={Slide}
+   toastStyle={toastStyle}
+   newestOnTop
+ />
 );
 };
 
-// ----------------------------------------------------
 // GENERAL TOAST
-// ----------------------------------------------------
 export const showToast = (message, type = "info") => {
 toast(message, {
 type,
@@ -53,14 +39,11 @@ style: themeColors[type] || themeColors.info,
 });
 };
 
-// ----------------------------------------------------
-// SPECIAL: UNDO TOAST
-// ----------------------------------------------------
+// UNDO TOAST
 export const showUndoToast = (message, onUndo) => {
 toast(
 ({ closeToast }) => (
 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}> <span>{message}</span>
-
     <button
       onClick={() => {
         onUndo();
@@ -83,5 +66,6 @@ toast(
 {
   style: themeColors.warning,
 }
+
 );
 };
