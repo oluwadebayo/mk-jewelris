@@ -1,44 +1,56 @@
 // pages/api/admin/orders/update.js
-import fs from "fs";
-import path from "path";
 import { getToken } from "next-auth/jwt";
+import { supabaseServer } from "@/lib/supabase";
 
 export default async function handler(req, res) {
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  // Admin auth
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
 
   if (!token || token.role !== "admin") {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  // Allow only POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const { orderId, status } = req.body;
+
     if (!orderId || !status) {
       return res.status(400).json({ error: "Missing fields" });
     }
 
-    const dataDir = path.join(process.cwd(), "data");
-    const ordersPath = path.join(dataDir, "orders.json");
-    const orders = fs.existsSync(ordersPath)
-      ? JSON.parse(fs.readFileSync(ordersPath, "utf8"))
-      : [];
+    // Update order in Supabase
+    const { data, error } = await supabaseServer
+      .from("orders")
+      .update({
+        status,
+        adminUpdatedAt: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .maybeSingle();
 
-    const idx = orders.findIndex((o) => String(o.id) === String(orderId));
-    if (idx === -1) {
+    if (error) {
+      console.error("Supabase update error:", error);
+      return res.status(500).json({ error: "UPDATE_FAILED" });
+    }
+
+    if (!data) {
       return res.status(404).json({ error: "Order not found" });
     }
 
-    orders[idx].status = status;
-    orders[idx].adminUpdatedAt = new Date().toISOString();
-
-    fs.writeFileSync(ordersPath, JSON.stringify(orders, null, 2));
-
-    return res.status(200).json({ message: "Order updated", order: orders[idx] });
+    return res.status(200).json({
+      message: "Order updated successfully",
+      order: data,
+    });
   } catch (err) {
     console.error("ADMIN UPDATE ERROR:", err);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "SERVER_ERROR" });
   }
 }

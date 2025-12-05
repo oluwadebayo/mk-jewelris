@@ -2,43 +2,47 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import { supabaseServer } from "../../../lib/supabase";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } }
-);
-
-// --------------------------------------------------
-// AUTO LOGIN FROM EMAIL VERIFICATION
-// --------------------------------------------------
+//
+// Helper: auto-login via verification token
+//
 async function handleVerifyTokenLogin(token) {
-  const { data: pending } = await supabase
+  const { data: pending, error: lookupErr } = await supabaseServer
     .from("pending_verifications")
     .select("*")
     .eq("verification_token", token)
     .maybeSingle();
 
+  if (lookupErr) throw new Error("DB_ERROR");
   if (!pending) throw new Error("INVALID_VERIFY_TOKEN");
 
+  // Token expired?
   if (pending.expires_at && new Date(pending.expires_at) < new Date()) {
-    await supabase.from("pending_verifications").delete().eq("id", pending.id);
+    await supabaseServer.from("pending_verifications").delete().eq("id", pending.id);
     throw new Error("TOKEN_EXPIRED");
   }
 
-  await supabase.from("users")
+  // Mark user as verified
+  const { error: updateErr } = await supabaseServer
+    .from("users")
     .update({ verified: true })
     .eq("id", pending.user_id);
 
-  await supabase.from("pending_verifications").delete().eq("user_id", pending.user_id);
+  if (updateErr) throw new Error("DB_ERROR");
 
-  const { data: user } = await supabase
+  // Delete tokens for this user
+  await supabaseServer.from("pending_verifications").delete().eq("user_id", pending.user_id);
+
+  // Fetch updated user
+  const { data: user, error: userErr } = await supabaseServer
     .from("users")
     .select("*")
     .eq("id", pending.user_id)
     .maybeSingle();
+
+  if (userErr || !user) throw new Error("USER_NOT_FOUND");
 
   return {
     id: user.id,
@@ -64,36 +68,49 @@ export const authOptions = {
       },
 
       async authorize(credentials) {
-        if (!credentials) throw new Error("NO_CREDENTIALS");
+        try {
+          if (!credentials) throw new Error("NO_CREDENTIALS");
 
-        const { email, password, verifyToken } = credentials;
+          const email = String(credentials.email || "").trim();
+          const password = String(credentials.password || "");
+          const verifyToken = String(credentials.verifyToken || "").trim();
 
-        if (verifyToken) return await handleVerifyTokenLogin(verifyToken);
+          // Auto-login using verifyToken
+          if (verifyToken) {
+            return await handleVerifyTokenLogin(verifyToken);
+          }
 
-        if (email === "jwt" && password.length > 20)
-          return await handleVerifyTokenLogin(password);
+          // Legacy auto-login case used elsewhere
+          if (email === "jwt" && password.length > 20) {
+            return await handleVerifyTokenLogin(password);
+          }
 
-        if (!email || !password) throw new Error("MISSING_CREDENTIALS");
+          if (!email || !password) throw new Error("MISSING_CREDENTIALS");
 
-        const { data: user } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", email)
-          .maybeSingle();
+          const { data: user, error: userErr } = await supabaseServer
+            .from("users")
+            .select("*")
+            .eq("email", email)
+            .maybeSingle();
 
-        if (!user) return null;
+          if (userErr) throw new Error("DB_ERROR");
+          if (!user) return null;
 
-        if (!user.verified) throw new Error(`UNVERIFIED:${email}`);
+          if (!user.verified) throw new Error(`UNVERIFIED:${email}`);
 
-        const validPassword = bcrypt.compareSync(password, user.password_hash);
-        if (!validPassword) return null;
+          const validPassword = bcrypt.compareSync(password, user.password_hash || "");
+          if (!validPassword) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: `${user.first_name} ${user.last_name}`.trim(),
-          role: user.role || "user",
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+            role: user.role || "user",
+          };
+        } catch (err) {
+          console.error("Credentials authorize error:", err);
+          throw err;
+        }
       },
     }),
   ],
@@ -102,32 +119,39 @@ export const authOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        const { data: existing } = await supabase
-          .from("users")
-          .select("*")
-          .eq("email", user.email)
-          .maybeSingle();
+      try {
+        // On Google sign in, insert user if not exists
+        if (account?.provider === "google") {
+          const { data: existing, error: existingErr } = await supabaseServer
+            .from("users")
+            .select("*")
+            .eq("email", user.email)
+            .maybeSingle();
 
-        if (!existing) {
-          const parts = (user.name || "").split(" ");
+          if (existingErr) throw existingErr;
 
-          await supabase.from("users").insert([
-            {
-              email: user.email,
-              verified: true,
-              role: "user",
-              first_name: parts[0] || "",
-              last_name: parts.slice(1).join(" ") || "",
-            },
-          ]);
+          if (!existing) {
+            const parts = (user.name || "").split(" ");
+            await supabaseServer.from("users").insert([
+              {
+                email: user.email,
+                verified: true,
+                role: "user",
+                first_name: parts[0] || "",
+                last_name: parts.slice(1).join(" ") || "",
+              },
+            ]);
+          }
         }
-      }
 
-      return true;
+        return true;
+      } catch (err) {
+        console.error("signIn callback error:", err);
+        return false;
+      }
     },
 
-    // -------------------- FIXED JWT CALLBACK --------------------
+    // JWT callback - ensure role/id present
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -136,19 +160,23 @@ export const authOptions = {
         return token;
       }
 
-      // If Google login does NOT supply role, we fetch it from DB
+      // If role missing, try fetching by email
       if (!token.role && token.email) {
-        const { data: dbUser } = await supabase
-          .from("users")
-          .select("id, role")
-          .eq("email", token.email)
-          .maybeSingle();
+        try {
+          const { data: dbUser, error } = await supabaseServer
+            .from("users")
+            .select("id, role")
+            .eq("email", token.email)
+            .maybeSingle();
 
-        if (dbUser) {
-          token.id = dbUser.id || token.id;
-          token.role = dbUser.role || "user";
-        } else {
-          token.role = "user";
+          if (!error && dbUser) {
+            token.id = dbUser.id || token.id;
+            token.role = dbUser.role || "user";
+          } else {
+            token.role = token.role || "user";
+          }
+        } catch (e) {
+          token.role = token.role || "user";
         }
       }
 

@@ -8,26 +8,14 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
   if (!token || token.role !== "admin")
     return res.status(401).json({ error: "Unauthorized" });
 
   const { id } = req.query;
 
-  const { data, error } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", id)
-    .single();
+  const { error } = await supabase.from("products").delete().eq("id", id);
 
-  if (error) return res.status(400).json({ error: "USER_NOT_FOUND" });
+  if (error) return res.status(500).json({ error: error.message });
 
-  const newRole = data.role === "admin" ? "user" : "admin";
-
-  const updateRes = await supabase
-    .from("users")
-    .update({ role: newRole })
-    .eq("id", id);
-
-  return res.status(200).json({ success: true, newRole });
+  return res.status(200).json({ success: true });
 }

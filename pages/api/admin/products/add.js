@@ -8,15 +8,21 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
   if (!token || token.role !== "admin")
     return res.status(401).json({ error: "Unauthorized" });
 
-  const { id } = req.query;
+  const { name, price, description, image } = req.body;
 
-  const { error } = await supabase.from("users").delete().eq("id", id);
+  const { data, error } = await supabase.from("products").insert([
+    {
+      name,
+      price,
+      description,
+      image,
+    },
+  ]);
 
   if (error) return res.status(500).json({ error: error.message });
 
-  return res.status(200).json({ success: true });
+  return res.status(200).json({ product: data[0] });
 }

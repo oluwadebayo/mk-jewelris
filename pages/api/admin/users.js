@@ -1,26 +1,24 @@
-// pages/api/admin/users.js
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "GET")
+    return res.status(405).json({ error: "Method Not Allowed" });
 
   try {
-    // Load public/users.json using absolute URL
-    const usersRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/users.json`);
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (!usersRes.ok) {
-      console.error("Failed to fetch users.json:", await usersRes.text());
-      return res.status(500).json({ error: "READ_FAILED" });
-    }
+    if (error) return res.status(500).json({ error: error.message });
 
-    const users = await usersRes.json();
-
-    return res.status(200).json({
-      users: Array.isArray(users) ? users : [],
-    });
+    return res.status(200).json({ users: data });
   } catch (err) {
-    console.error("API /admin/users error:", err);
     return res.status(500).json({ error: "SERVER_ERROR" });
   }
 }
