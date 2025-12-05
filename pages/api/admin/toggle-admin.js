@@ -1,24 +1,36 @@
 // pages/api/admin/toggle-admin.js
-import fs from "fs";
-import path from "path";
 
-const usersFile = path.join(process.cwd(), "users.json");
+export default async function handler(req, res) {
+  if (req.method !== "PATCH") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-export default function handler(req, res) {
   try {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: "MISSING_ID" });
 
-    const raw = fs.existsSync(usersFile) ? fs.readFileSync(usersFile, "utf8") : "[]";
-    const users = JSON.parse(raw || "[]");
-    const updated = users.map(u => {
+    // Load users.json from public
+    const usersRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/users.json`);
+    let users = await usersRes.json();
+
+    users = users.map((u) => {
       if (String(u.id) === String(id)) {
         return { ...u, role: u.role === "admin" ? "user" : "admin" };
       }
       return u;
     });
 
-    fs.writeFileSync(usersFile, JSON.stringify(updated, null, 2));
+    // Write updated JSON back to GitHub using Vercel Storage or API route
+    const saveRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/admin/write-users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(users),
+    });
+
+    if (!saveRes.ok) {
+      return res.status(500).json({ error: "WRITE_FAILED" });
+    }
+
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("toggle-admin error:", err);
