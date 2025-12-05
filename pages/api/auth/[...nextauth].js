@@ -2,101 +2,93 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
-const usersFile = path.join(process.cwd(), "users.json");
-
-// Helper: read JSON safely
-function readUsers() {
-  try {
-    const raw = fs.existsSync(usersFile) ? fs.readFileSync(usersFile, "utf8") : "[]";
-    return JSON.parse(raw || "[]");
-  } catch (err) {
-    console.error("readUsers error:", err);
-    return [];
-  }
-}
-
-// Helper: write JSON safely
-function writeUsers(data) {
-  try {
-    fs.writeFileSync(usersFile, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.error("writeUsers error:", err);
-  }
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export const authOptions = {
   providers: [
-    // GOOGLE
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
 
-    // CREDENTIALS
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" },
-        verifyToken: { label: "Verify Token", type: "text" },
+        email: {},
+        password: {},
+        verifyToken: {},
       },
 
       async authorize(credentials) {
-        if (!credentials) throw new Error("No credentials provided");
+        if (!credentials) throw new Error("NO_CREDENTIALS");
 
-        const users = readUsers();
-
-        //
-        // AUTO-LOGIN AFTER VERIFICATION
-        //
+        // 1️⃣ Auto login after email verification
         if (credentials.verifyToken) {
           const token = credentials.verifyToken.trim();
-          const user = users.find(u => u.verifyToken === token);
 
-          if (!user) throw new Error("INVALID_VERIFY_TOKEN");
-          if (Date.now() > (user.verifyExpires || 0)) throw new Error("VERIFY_TOKEN_EXPIRED");
+          const { data: pending } = await supabase
+            .from("pending_verifications")
+            .select("*")
+            .eq("verification_token", token)
+            .maybeSingle();
 
-          user.verified = true;
-          user.verifyToken = null;
-          user.verifyExpires = null;
+          if (!pending) throw new Error("INVALID_VERIFY_TOKEN");
 
-          writeUsers(users);
+          // Mark user verified
+          await supabase
+            .from("users")
+            .update({ verified: true })
+            .eq("id", pending.user_id);
+
+          // Remove all tokens
+          await supabase
+            .from("pending_verifications")
+            .delete()
+            .eq("user_id", pending.user_id);
+
+          // Fetch updated user
+          const { data: user } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", pending.user_id)
+            .maybeSingle();
 
           return {
             id: user.id,
-            name: user.firstName,
             email: user.email,
+            name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
             role: user.role || "user",
           };
         }
 
-        //
-        // NORMAL LOGIN (with SAFETY DEFAULTS)
-        //
+        // 2️⃣ Normal login
         const { email, password } = credentials;
-        const user = users.find(u => u.email === email);
+        if (!email || !password) throw new Error("MISSING_CREDENTIALS");
 
-        // SAFETY: if user missing or malformed -> return null (credentials invalid)
-        if (!user || typeof user !== "object") return null;
+        const { data: user } = await supabase
+          .from("users")
+          .select("*")
+          .eq("email", email)
+          .maybeSingle();
 
-        // Must be verified before login
+        if (!user) return null;
+
         if (!user.verified) throw new Error(`UNVERIFIED:${email}`);
 
-        // If no passwordHash (e.g. google user), disallow credentials login gracefully
-        if (!user.passwordHash) return null;
-
-        const valid = bcrypt.compareSync(password, user.passwordHash);
-        if (!valid) throw new Error("INVALID_PASSWORD");
+        const isValid = bcrypt.compareSync(password, user.password_hash);
+        if (!isValid) throw new Error("INVALID_PASSWORD");
 
         return {
           id: user.id,
           email: user.email,
-          firstName: user.firstName,
-          role: user.role || "user",
+          name: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
+          role: user.role,
         };
       },
     }),
@@ -105,65 +97,47 @@ export const authOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
-    //
-    // GOOGLE SIGN-IN → create user in users.json
-    //
     async signIn({ user, account }) {
+      // Google: create supabase user if not exist
       if (account?.provider === "google") {
-        const users = readUsers();
-
-        let existing = users.find(u => u.email === user.email);
+        const { data: existing } = await supabase
+          .from("users")
+          .select("*")
+          .eq("email", user.email)
+          .maybeSingle();
 
         if (!existing) {
-          const newUser = {
-            id: String(Date.now()),
-            firstName: user.name?.split(" ")[0] || "",
-            lastName: user.name?.split(" ")[1] || "",
-            company: "",
-            email: user.email,
-            verified: true,
-            passwordHash: null,
-            provider: "google",
-            role: "user", // Google users default to user
-          };
-
-          users.push(newUser);
-          writeUsers(users);
+          await supabase.from("users").insert([
+            {
+              email: user.email,
+              verified: true,
+              role: "user",
+              first_name: user.name?.split(" ")[0] || "",
+              last_name: user.name?.split(" ")[1] || "",
+            },
+          ]);
         }
       }
 
       return true;
     },
 
-    //
-    // JWT callback — store role inside the token
-    //
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role || "user";
+        token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
 
-    //
-    // SESSION callback — expose role to client
-    //
     async session({ session, token }) {
-      session.user.role = token.role || "user";
+      session.user.id = token.id;
+      session.user.role = token.role;
       return session;
     },
 
-    //
-    // REDIRECT callback — role redirect
-    //
-    async redirect({ baseUrl, token }) {
-      if (!token) return `${baseUrl}/dashboard`;
-
-      if (token.role === "admin") {
-        return `${baseUrl}/admin`;
-      }
-
-      return `${baseUrl}/dashboard`;
+    async redirect({ baseUrl }) {
+      return baseUrl + "/dashboard";
     },
   },
 
@@ -174,4 +148,4 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export default NextAuth(authOptions);
+export default (req, res) => NextAuth(req, res, authOptions);
