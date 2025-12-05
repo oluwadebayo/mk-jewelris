@@ -1,11 +1,8 @@
-// pages/admin/orders/index.js
-import fs from "fs";
-import path from "path";
-import { getToken } from "next-auth/jwt";
 import { useState } from "react";
+import { getToken } from "next-auth/jwt";
 
-import AdminSidebar from "../../components/admin/AdminSidebar";
-import AdminNavbar from "../../components/admin/AdminNavbar";
+import AdminNavbar from "@/components/admin/AdminNavbar";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 export default function AdminOrdersPage({ initialOrders }) {
   const [orders, setOrders] = useState(initialOrders || []);
@@ -49,7 +46,9 @@ export default function AdminOrdersPage({ initialOrders }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ display: "flex" }}>
+    <div
+      style={{ display: "flex", minHeight: "100vh", background: "#f8fafc" }}
+    >
       <AdminSidebar current="/admin/orders" />
 
       <div style={{ flex: 1 }}>
@@ -60,7 +59,7 @@ export default function AdminOrdersPage({ initialOrders }) {
             Admin — Orders
           </h1>
 
-          {/* CSV Export Button */}
+          {/* CSV Export */}
           <div style={{ marginTop: 20, marginBottom: 30 }}>
             <a
               href="/api/admin/orders/export-csv"
@@ -97,10 +96,11 @@ export default function AdminOrdersPage({ initialOrders }) {
                     alignItems: "center",
                   }}
                 >
-                  {/* LEFT: Info */}
+                  {/* LEFT */}
                   <div>
                     <div style={{ fontWeight: 700 }}>
-                      Order #{order.id} — ₦{order.amount.toLocaleString()}
+                      Order #{order.id} — ₦
+                      {Number(order.amount)?.toLocaleString()}
                     </div>
 
                     <div style={{ marginTop: 4, marginBottom: 4 }}>
@@ -111,7 +111,7 @@ export default function AdminOrdersPage({ initialOrders }) {
 
                     <div style={{ color: "#666" }}>{order.email}</div>
                     <div style={{ color: "#666", fontSize: 13 }}>
-                      {new Date(order.date).toLocaleString()}
+                      {new Date(order.createdAt).toLocaleString()}
                     </div>
 
                     {/* RECEIPTS */}
@@ -141,7 +141,7 @@ export default function AdminOrdersPage({ initialOrders }) {
                     </div>
                   </div>
 
-                  {/* RIGHT: Actions */}
+                  {/* RIGHT */}
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => updateStatus(order.id, "approved")}
@@ -198,7 +198,7 @@ export default function AdminOrdersPage({ initialOrders }) {
 }
 
 // -------------------------------------------------------
-//  FIXED SERVER-SIDE PROPS (LOAD FROM /public/orders.json)
+// FIXED: Load orders from /public/orders.json (NO fs)
 // -------------------------------------------------------
 export async function getServerSideProps(ctx) {
   const token = await getToken({
@@ -212,11 +212,9 @@ export async function getServerSideProps(ctx) {
     };
   }
 
-  const ordersPath = path.join(process.cwd(), "public", "orders.json");
-
-  const orders = fs.existsSync(ordersPath)
-    ? JSON.parse(fs.readFileSync(ordersPath, "utf8"))
-    : [];
+  const base = process.env.NEXT_PUBLIC_SITE_URL;
+  const res = await fetch(`${base}/orders.json`);
+  const orders = await res.json();
 
   return {
     props: {
