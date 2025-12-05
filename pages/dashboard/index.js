@@ -6,7 +6,6 @@ import { clearCart, getCart, addToCart } from "../../utils/cart";
 import { useSession } from "next-auth/react";
 import { showToast } from "@/components/ToastContainer";
 
-
 export default function DashboardHome({ products }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -15,12 +14,12 @@ export default function DashboardHome({ products }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const perPage = 6; // pagination size
+  const perPage = 6;
 
-  // categories (safe)
+  // categories
   const categories = ["All", ...Array.from(new Set((products || []).map((p) => p.category).filter(Boolean)))];
 
-  // search + category filter
+  // filtering
   const filtered = (products || []).filter((p) => {
     const matchesCategory = category === "All" ? true : p.category === category;
     const matchesQuery = query.trim() === "" ? true : (p.name || "").toLowerCase().includes(query.toLowerCase());
@@ -28,20 +27,21 @@ export default function DashboardHome({ products }) {
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+
   useEffect(() => {
     if (page > totalPages) setPage(1);
   }, [totalPages]);
 
   const pageProducts = filtered.slice((page - 1) * perPage, page * perPage);
 
-  // Save user email
+  // save user email
   useEffect(() => {
     if (session?.user?.email) {
       localStorage.setItem("userEmail", session.user.email);
     }
   }, [session]);
 
-  // Detect Paystack callback
+  // Paystack callback detection
   useEffect(() => {
     if (router.query.payment === "success") {
       const cart = getCart();
@@ -63,7 +63,6 @@ export default function DashboardHome({ products }) {
         .then((res) => res.json())
         .then(() => {
           clearCart();
-          // dispatch cart updated
           window.dispatchEvent(new Event("cart-updated"));
           if (window.toast) window.toast("🎉 Order placed successfully!");
         })
@@ -78,7 +77,6 @@ export default function DashboardHome({ products }) {
   function handleQuickAdd(product) {
     addToCart(product);
     window.dispatchEvent(new Event("cart-updated"));
-    // small feedback without changing styles
     showToast(`${product.name} added to cart!`, "success");
   }
 
@@ -98,13 +96,16 @@ export default function DashboardHome({ products }) {
           Browse Our Latest Products
         </h1>
 
-        {/* Controls: Category + Search */}
+        {/* Controls */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {categories.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCategory(c); setPage(1); }}
+                onClick={() => {
+                  setCategory(c);
+                  setPage(1);
+                }}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",
@@ -123,7 +124,10 @@ export default function DashboardHome({ products }) {
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <input
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search products..."
               style={{
                 padding: "10px",
@@ -195,7 +199,7 @@ export default function DashboardHome({ products }) {
                 </a>
               </Link>
 
-              {/* Quick Add button */}
+              {/* Quick Add */}
               <div style={{ marginTop: 8, textAlign: "center" }}>
                 <button
                   onClick={() => handleQuickAdd(p)}
@@ -268,22 +272,35 @@ export default function DashboardHome({ products }) {
   );
 }
 
-// SERVER-SIDE: read products.json from root
-export async function getServerSideProps() {
+// SERVER-SIDE
+export async function getServerSideProps(context) {
   const fs = require("fs");
   const path = require("path");
 
+  // ⭐ Prevent Vercel HEAD crash
+  if (context.req.method === "HEAD") {
+    return { props: { products: [] } };
+  }
+
   try {
     const filePath = path.join(process.cwd(), "products.json");
+
+    if (!fs.existsSync(filePath)) {
+      console.error("❌ products.json NOT FOUND");
+      return { props: { products: [] } };
+    }
+
     const fileData = fs.readFileSync(filePath, "utf-8");
     const products = JSON.parse(fileData);
 
-    // ensure category fallback
-    const normalized = products.map((p) => ({ category: p.category || "Uncategorized", ...p }));
+    const normalized = products.map((p) => ({
+      category: p.category || "Uncategorized",
+      ...p,
+    }));
 
     return { props: { products: normalized } };
   } catch (error) {
-    console.log("READ PRODUCTS ERROR:", error);
+    console.error("READ PRODUCTS ERROR:", error);
     return { props: { products: [] } };
   }
 }
