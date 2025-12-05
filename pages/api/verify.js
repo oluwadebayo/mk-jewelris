@@ -14,38 +14,57 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1️⃣ Find token
+    // 1️⃣ Find token in pending_verifications
     const { data: pending, error: pvErr } = await supabase
       .from("pending_verifications")
       .select("*")
       .eq("verification_token", token)
       .maybeSingle();
 
-    if (pvErr) return res.status(500).json({ error: "DB_ERROR" });
-    if (!pending) return res.status(400).json({ error: "INVALID_VERIFY_TOKEN" });
+    if (pvErr) {
+      console.error("Token lookup error:", pvErr);
+      return res.status(500).json({ error: "DB_ERROR" });
+    }
 
-    // 2️⃣ Mark user verified
-    await supabase
+    if (!pending) {
+      return res.status(400).json({ error: "INVALID_VERIFY_TOKEN" });
+    }
+
+    // 2️⃣ Check expiration
+    if (pending.expires_at && new Date(pending.expires_at) < new Date()) {
+      return res.status(400).json({ error: "TOKEN_EXPIRED" });
+    }
+
+    // 3️⃣ Mark user verified
+    const { error: verifyErr } = await supabase
       .from("users")
       .update({ verified: true })
       .eq("id", pending.user_id);
 
-    // 3️⃣ Remove ALL previous tokens for this user
+    if (verifyErr) {
+      console.error("Verify update error:", verifyErr);
+      return res.status(500).json({ error: "VERIFY_FAILED" });
+    }
+
+    // 4️⃣ Delete all tokens for this user
     await supabase
       .from("pending_verifications")
       .delete()
       .eq("user_id", pending.user_id);
 
-    // 4️⃣ Build redirect URL for frontend auto-login
+    // 5️⃣ Auto-login by redirecting to NextAuth callback
     const base =
       process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.NEXTAUTH_URL ||
       process.env.NEXT_PUBLIC_VERCEL_URL ||
       "";
 
-    const redirect = `${String(base).replace(/\/$/, "")}/login?verifyToken=${encodeURIComponent(
-      token
-    )}`;
+    const redirect = `${String(base).replace(
+      /\/$/,
+      ""
+    )}/api/auth/callback/credentials?email=${encodeURIComponent(
+      pending.email
+    )}&verified=true&auto=true`;
 
     return res.redirect(302, redirect);
   } catch (err) {
