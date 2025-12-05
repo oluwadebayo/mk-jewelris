@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1️⃣ Find token in pending_verifications
+    // 1️⃣ Find token
     const { data: pending, error: pvErr } = await supabase
       .from("pending_verifications")
       .select("*")
@@ -46,13 +46,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "VERIFY_FAILED" });
     }
 
-    // 4️⃣ Delete all tokens for this user
+    // 4️⃣ Remove tokens for this user
     await supabase
       .from("pending_verifications")
       .delete()
       .eq("user_id", pending.user_id);
 
-    // 5️⃣ Auto-login by redirecting to NextAuth callback
+    // 5️⃣ Auto-login by redirecting to NextAuth credentials callback
     const base =
       process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.NEXTAUTH_URL ||
