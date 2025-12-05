@@ -168,9 +168,9 @@ export async function getServerSideProps(ctx) {
     const base = process.env.NEXT_PUBLIC_SITE_URL;
 
     const [ordersRes, usersRes, productsRes] = await Promise.all([
-      fetch(`${base}/orders.json`),
-      fetch(`${base}/users.json`),
-      fetch(`${base}/products.json`),
+      fetch(`${base}/public/orders.json`),
+      fetch(`${base}/public/users.json`),
+      fetch(`${base}/public/products.json`),
     ]);
 
     const orders = await ordersRes.json();
