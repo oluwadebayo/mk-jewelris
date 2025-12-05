@@ -6,15 +6,37 @@ import { clearCart, getCart, addToCart } from "../../utils/cart";
 import { useSession } from "next-auth/react";
 import { showToast } from "@/components/ToastContainer";
 
-export default function DashboardHome({ products }) {
+export default function DashboardHome() {
   const router = useRouter();
   const { data: session } = useSession();
 
+  const [products, setProducts] = useState([]);
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
   const perPage = 6;
+
+  // ⭐ Load products.json from /public (100% stable on Vercel)
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await fetch("/public/products.json");
+        const data = await res.json();
+
+        setProducts(
+          data.map((p) => ({
+            category: p.category || "Uncategorized",
+            ...p,
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load products.json:", err);
+      }
+    }
+
+    loadProducts();
+  }, []);
 
   // categories
   const categories = ["All", ...Array.from(new Set((products || []).map((p) => p.category).filter(Boolean)))];
@@ -22,7 +44,8 @@ export default function DashboardHome({ products }) {
   // filtering
   const filtered = (products || []).filter((p) => {
     const matchesCategory = category === "All" ? true : p.category === category;
-    const matchesQuery = query.trim() === "" ? true : (p.name || "").toLowerCase().includes(query.toLowerCase());
+    const matchesQuery =
+      query.trim() === "" ? true : (p.name || "").toLowerCase().includes(query.toLowerCase());
     return matchesCategory && matchesQuery;
   });
 
@@ -64,7 +87,7 @@ export default function DashboardHome({ products }) {
         .then(() => {
           clearCart();
           window.dispatchEvent(new Event("cart-updated"));
-          if (window.toast) window.toast("🎉 Order placed successfully!");
+          showToast("🎉 Order placed successfully!", "success");
         })
         .catch((err) => console.error("ORDER SAVE ERROR:", err));
     }
@@ -97,7 +120,15 @@ export default function DashboardHome({ products }) {
         </h1>
 
         {/* Controls */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 20,
+            flexWrap: "wrap",
+          }}
+        >
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             {categories.map((c) => (
               <button
@@ -270,37 +301,4 @@ export default function DashboardHome({ products }) {
       </div>
     </div>
   );
-}
-
-// SERVER-SIDE
-export async function getServerSideProps(context) {
-  const fs = require("fs");
-  const path = require("path");
-
-  // ⭐ Prevent Vercel HEAD crash
-  if (context.req.method === "HEAD") {
-    return { props: { products: [] } };
-  }
-
-  try {
-    const filePath = path.join(process.cwd(), "products.json");
-
-    if (!fs.existsSync(filePath)) {
-      console.error("❌ products.json NOT FOUND");
-      return { props: { products: [] } };
-    }
-
-    const fileData = fs.readFileSync(filePath, "utf-8");
-    const products = JSON.parse(fileData);
-
-    const normalized = products.map((p) => ({
-      category: p.category || "Uncategorized",
-      ...p,
-    }));
-
-    return { props: { products: normalized } };
-  } catch (error) {
-    console.error("READ PRODUCTS ERROR:", error);
-    return { props: { products: [] } };
-  }
 }
