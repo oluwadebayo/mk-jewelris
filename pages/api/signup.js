@@ -4,8 +4,8 @@ import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+process.env.NEXT_PUBLIC_SUPABASE_URL,
+process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 export default async function handler(req, res) {
@@ -20,19 +20,18 @@ return res.status(400).json({ error: "MISSING_FIELDS" });
 }
 
 try {
-// 1) Check if email already exists in users table
-const { data: existingUser, error: existingErr } = await supabase
+// 1) Check if user exists
+const { data: existingUser, error: lookupErr } = await supabase
 .from("users")
 .select("*")
 .eq("email", email)
 .maybeSingle();
 
-if (existingErr) {
-  console.error("Supabase lookup error:", existingErr);
-  return res.status(500).json({ error: "DB_LOOKUP_FAILED" });
+if (lookupErr) {
+  console.error("DB lookup error:", lookupErr);
+  return res.status(500).json({ error: "DB_ERROR" });
 }
 
-// If user exists
 if (existingUser) {
   if (!existingUser.verified) {
     return res.status(400).json({ error: "UNVERIFIED_ACCOUNT" });
@@ -43,8 +42,8 @@ if (existingUser) {
 // 2) Hash password
 const hashedPassword = bcrypt.hashSync(password, 10);
 
-// 3) Insert user
-const { data: insertedUser, error: insertErr } = await supabase
+// 3) Create new user
+const { data: user, error: insertErr } = await supabase
   .from("users")
   .insert([
     {
@@ -54,57 +53,55 @@ const { data: insertedUser, error: insertErr } = await supabase
       email,
       password_hash: hashedPassword,
       verified: false,
-      role: "user",
-    },
+      role: "user"
+    }
   ])
   .select()
   .single();
 
-if (insertErr || !insertedUser) {
-  console.error("Supabase insert error:", insertErr);
+if (insertErr || !user) {
+  console.error("User insert error:", insertErr);
   return res.status(500).json({ error: "SAVE_FAILED" });
 }
 
-// 4) Create pending verification record
-const verifyToken = crypto.randomBytes(20).toString("hex");
-const verifyExpires = Date.now() + 1000 * 60 * 60; // 1 hour
-const expiresAt = new Date(verifyExpires).toISOString();
+// 4) Create verification token
+const token = crypto.randomBytes(20).toString("hex");
+const expiresAt = new Date(Date.now() + 1000 * 60 * 60).toISOString(); // 1 hour
 
 const { error: pvErr } = await supabase
   .from("pending_verifications")
   .insert([
     {
-      user_id: insertedUser.id,
+      user_id: user.id,
       email,
-      verification_token: verifyToken,
-      expires_at: expiresAt,
-    },
+      verification_token: token,
+      expires_at: expiresAt
+    }
   ]);
 
 if (pvErr) {
-  console.error("pending_verifications insert error:", pvErr);
+  console.error("pending_verifications error:", pvErr);
 }
 
-// 5) Build verify link
-const base = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "";
-const link = `${base.replace(/\/$/, "")}/verify?token=${verifyToken}`;
+// 5) Build verification link
+const base =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.NEXT_PUBLIC_VERCEL_URL ||
+  "";
+const link = `${base.replace(/\/$/, "")}/verify-success?token=${token}`;
 
-// 6) Send verification email (your full styling preserved)
+// 6) Send styled email (unchanged)
 const transporter = nodemailer.createTransport({
   service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
 });
 
 const html = `
   <div style="background-color:#0f1216; padding:40px 0; font-family:Arial, sans-serif;">
     <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background:#1a1d21; border-radius:8px; padding:40px;">
-      
       <tr>
         <td align="center" style="padding-bottom:30px;">
-          <img src="https://www.onlinelogomaker.com/blog/wp-content/uploads/2017/09/jewelry-logo-design.jpg" alt="Logo" width="140" style="display:block;">
+          <img src="https://www.onlinelogomaker.com/blog/wp-content/uploads/2017/09/jewelry-logo-design.jpg" alt="Logo" width="140">
         </td>
       </tr>
 
@@ -114,7 +111,7 @@ const html = `
         </td>
       </tr>
 
-      <tr>
+        <tr>
         <td style="color:#c6c8cc; font-size:16px; line-height:24px; padding-bottom:30px;">
           Please click the button below to verify your email address.
         </td>
@@ -122,8 +119,7 @@ const html = `
 
       <tr>
         <td align="center" style="padding-bottom:40px;">
-          <a href="${link}"
-            style="background:#bfc3cc; color:#000; padding:12px 22px; font-size:15px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">
+          <a href="${link}" style="background:#bfc3cc; color:#000; padding:12px 22px; font-size:15px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">
             Verify Email Address
           </a>
         </td>
@@ -132,20 +128,9 @@ const html = `
       <tr>
         <td style="color:#c6c8cc; font-size:15px; line-height:24px; padding-bottom:30px;">
           If you did not create an account, no further action is required.<br><br>
-          Regards,<br>
-          M&K Jewelris 
+          Regards,<br>M&K Jewelris
         </td>
       </tr>
-
-      <tr>
-        <td style="border-top:1px solid #333; padding-top:25px; color:#8a8d92; font-size:13px; line-height:20px;">
-          If you're having trouble clicking the "Verify Email Address" button,
-          right-click the button, select "Copy Link Address",
-          and then paste that address into your browser:<br><br>
-          <a href="${link}" style="color:#9bb0ff; word-break:break-all;">${link}</a>
-        </td>
-      </tr>
-
     </table>
   </div>
 `;
@@ -154,10 +139,10 @@ try {
   await transporter.sendMail({
     to: email,
     subject: "Verify your M&K Jewelris Account",
-    html,
+    html
   });
 } catch (err) {
-  console.error("mail send error:", err);
+  console.error("Mail error:", err);
 }
 
 return res.status(200).json({ message: "Account created. Verify your email." });
