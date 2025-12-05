@@ -5,7 +5,6 @@ export default function VerifySuccess() {
 useEffect(() => {
 const token = new URLSearchParams(window.location.search).get("token");
 
-```
 if (token) {
   // Auto-login using the verifyToken flow supported by your Credentials Provider
   signIn("credentials", {
@@ -14,7 +13,6 @@ if (token) {
     callbackUrl: "/dashboard", // redirect after login
   });
 }
-```
 
 }, []);
 

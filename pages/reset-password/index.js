@@ -11,7 +11,6 @@ e.preventDefault();
 setLoading(true);
 setMessage("");
 
-```
 try {
   const res = await fetch("/api/forgot-password", {
     method: "POST",
@@ -31,13 +30,11 @@ try {
 }
 
 setLoading(false);
-```
 
 };
 
 return ( <div className="page-container"> <div className="card"> <h2 className="title">Reset Password</h2>
 
-```
     <form onSubmit={handleSubmit}>
       <input
         type="email"
