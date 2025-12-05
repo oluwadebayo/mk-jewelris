@@ -76,13 +76,14 @@ export default async function handler(req, res) {
     const { data: pvData, error: pvErr } = await supabase
       .from("pending_verifications")
       .insert([
-        {
+  {
           user_id: insertedUser.id ?? null,
           email,
-          token: verifyToken,
+          verification_token: verifyToken,   // ✅ correct column name
           expires_at: new Date(verifyExpires).toISOString(),
         },
       ])
+
       .select()
       .single();
 
